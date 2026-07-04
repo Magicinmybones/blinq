@@ -7,7 +7,7 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Manrope:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
 
 <style>
   :root {
@@ -104,16 +104,13 @@
     display:flex; align-items:center; gap:11px; padding-left:4px; text-decoration:none;
   }
   .brand-mark {
-    width: 34px; height: 34px; border-radius: 9px;
+    width: 34px; height: 34px;
     display:flex; align-items:center; justify-content:center;
-    background: rgba(20, 28, 33, 0.55);
-    border: 1px solid rgba(255,255,255,.12);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
   }
-  .brand-mark svg { width: 17px; height: 17px; display:block; }
+  .brand-mark img { width: 34px; height: 34px; object-fit: contain; display:block; }
   .brand-name {
-    font-family:'Syne', sans-serif;
-    font-size: 20px; font-weight:800; letter-spacing:-.01em; color: #F7FAFC;
+    font-family:'Manrope', sans-serif;
+    font-size: 20px; font-weight:700; letter-spacing:-.02em; color: #F7FAFC;
   }
   /* menu links with dropdown carets */
   .nav-links { display:flex; align-items:center; gap: 26px; margin: 0 24px; }
@@ -364,11 +361,8 @@
   <div class="nav-shell">
     <nav class="navbar">
       <a href="#top" class="brand">
-        <span class="brand-mark" aria-hidden="true">
-          <svg width="17" height="17" viewBox="0 0 17 17" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M2.5 15V5.2L8.5 2l6 3.2V15H10.2v-3.5a1.7 1.7 0 0 0-3.4 0V15H2.5Z" fill="#F7FAFC"/>
-            <circle cx="8.5" cy="6.6" r="1.15" fill="#69DDF7"/>
-          </svg>
+        <span class="brand-mark">
+          <img src="assets/blinq_mark.png" alt="blinq logo" />
         </span>
         <span class="brand-name">blinq</span>
       </a>
