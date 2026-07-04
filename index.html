@@ -174,6 +174,10 @@
     filter: brightness(.86) contrast(1.05);
     will-change: transform;
   }
+  /* video three sits above video one+two but stays hidden until the scrub
+     reaches the handover frame, then it covers the first clip instantly */
+  .seq-video--next { z-index:1; opacity:0; }
+  .seq-video--next.is-active { opacity:1; }
   /* cinematic vignette + fade into the page below (no extra motion) */
   .seq::after {
     content:""; position:absolute; inset:0; z-index:2; pointer-events:none;
@@ -393,9 +397,13 @@
     <div class="seq-outer">
       <div class="seq">
         <!-- all-intra re-encode (every frame a keyframe) for smooth scroll-scrubbing.
-             src is assigned in JS as a fully-downloaded blob so every frame is seekable. -->
+             src is assigned in JS as a fully-downloaded blob so every frame is seekable.
+             Two clips scrub back-to-back: video one+two, then video three. The last
+             frame of video two IS the first frame of video three, so the swap is seamless. -->
         <video class="seq-video" playsinline muted preload="auto"
                data-src="assets/video_scrub.mp4"></video>
+        <video class="seq-video seq-video--next" playsinline muted preload="auto"
+               data-src="assets/video_three.mp4"></video>
       </div>
     </div>
   </header>
@@ -607,24 +615,34 @@
          The pinned video's currentTime is tied to scroll progress, so the
          camera descent in the clip is physically driven by the user's scroll.
          GSAP's scrub adds an eased lag so the motion feels premium, never jumpy. */
-      const video = document.querySelector('.seq-video');
+      const video  = document.querySelector('.seq-video');        // video one+two
+      const video2 = document.querySelector('.seq-video--next');   // video three
 
-      // keep it fully under our control (no native playback)
-      video.pause();
-      video.muted = true;
-      video.playsInline = true;
+      // keep both fully under our control (no native playback)
+      [video, video2].forEach((v) => { v.pause(); v.muted = true; v.playsInline = true; });
 
+      let scrubBuilt = false;
       const buildVideoScrub = () => {
-        const duration = video.duration;
-        if (!duration || !isFinite(duration)) return;
+        if (scrubBuilt) return;
+        const d1 = video.duration, d2 = video2.duration;
+        // need BOTH durations so the combined timeline is exact
+        if (!d1 || !isFinite(d1) || !d2 || !isFinite(d2)) return;
+        scrubBuilt = true;
 
-        // proxy object we tween; we write currentTime from it to avoid
-        // firing redundant seeks when the target frame hasn't changed.
+        const total = d1 + d2;
+
+        // Extend the scroll length so video three scrubs at the same pace as
+        // the first clip (the 720vh base was tuned to video one+two's length).
+        const BASE_VH = 720;
+        document.querySelector('.seq-outer').style.height = (BASE_VH * (total / d1)) + 'vh';
+
+        // proxy object we tween across the FULL combined duration; we write
+        // currentTime from it to avoid redundant seeks on unchanged frames.
         const state = { t: 0 };
-        let last = -1;
+        let last = -1, onNext = false;
 
         gsap.to(state, {
-          t: duration,
+          t: total,
           ease: 'none',
           scrollTrigger: {
             trigger: '.seq-outer',
@@ -639,28 +657,38 @@
             // skip sub-frame updates the decoder would ignore anyway (~30fps)
             if (Math.abs(t - last) < 1 / 30) return;
             last = t;
-            // seekable once metadata is in; browsers coalesce rapid seeks to
-            // the latest target, so the scrub never sticks while scrolling fast
-            if (video.readyState >= 1 && video.seekable.length) {
-              video.currentTime = Math.min(t, video.duration - 0.001);
+            // browsers coalesce rapid seeks to the latest target, so the
+            // scrub never sticks while scrolling fast
+            if (t < d1) {
+              if (onNext) { onNext = false; video2.classList.remove('is-active'); }
+              if (video.readyState >= 1 && video.seekable.length) {
+                video.currentTime = Math.min(t, d1 - 0.001);
+              }
+            } else {
+              // past the handover frame → reveal + scrub video three
+              if (!onNext) { onNext = true; video2.classList.add('is-active'); }
+              if (video2.readyState >= 1 && video2.seekable.length) {
+                video2.currentTime = Math.min(t - d1, d2 - 0.001);
+              }
             }
           },
         });
+
+        // pin/height changed → let ScrollTrigger recompute its bounds
+        ScrollTrigger.refresh();
       };
 
-      // Force the video's OWN first frame to paint immediately (no poster,
+      // Force each clip's OWN first frame to paint immediately (no poster,
       // so the starting state is the video, never a static asset image).
-      const primeFirstFrame = () => { try { video.currentTime = 0; } catch (e) {} };
-      if (video.readyState >= 2) primeFirstFrame();
-      else video.addEventListener('loadeddata', primeFirstFrame, { once: true });
-
-      // wire scrubbing once the browser knows the duration (fires when the
-      // loader assigns the downloaded blob as the source)
-      if (video.readyState >= 1 && video.duration) {
-        buildVideoScrub();
-      } else {
-        video.addEventListener('loadedmetadata', buildVideoScrub, { once: true });
-      }
+      const primeFirstFrame = (v) => { try { v.currentTime = 0; } catch (e) {} };
+      [video, video2].forEach((v) => {
+        if (v.readyState >= 2) primeFirstFrame(v);
+        else v.addEventListener('loadeddata', () => primeFirstFrame(v), { once: true });
+        // wire scrubbing once the browser knows the duration (fires when the
+        // loader assigns the downloaded blob as the source)
+        if (v.readyState >= 1 && v.duration) buildVideoScrub();
+        else v.addEventListener('loadedmetadata', buildVideoScrub, { once: true });
+      });
 
       /* Parallax on the battery showcase media */
       gsap.utils.toArray('.showcase-media img').forEach((img) => {
@@ -696,7 +724,8 @@
         if (!loader) { if (lenis) lenis.start(); return; }
         const numEl = document.getElementById('load-num');
         const barEl = document.getElementById('load-bar');
-        const VIDEO_URL = video.getAttribute('data-src') || 'assets/video_scrub.mp4';
+        const clips = [video, video2];
+        const urls = clips.map((v) => v.getAttribute('data-src'));
         let done = false, finished = false, shown = 0, target = 0;
 
         // entrance
@@ -733,33 +762,41 @@
         };
         requestAnimationFrame(render);
 
-        // Download the whole file, tracking byte progress, then hand the
-        // <video> a blob URL so it is 100% buffered and seekable.
+        // Download BOTH clips in full, tracking combined byte progress, then
+        // hand each <video> a blob URL so every frame is buffered and seekable.
         (async () => {
           try {
-            const resp = await fetch(VIDEO_URL);
-            if (!resp.ok) throw new Error('HTTP ' + resp.status);
-            const total = +resp.headers.get('Content-Length') || 0;
-            const reader = resp.body.getReader();
-            const chunks = []; let received = 0;
-            for (;;) {
-              const { done: d, value } = await reader.read();
-              if (d) break;
-              chunks.push(value); received += value.length;
-              target = total ? Math.min(96, (received / total) * 96) : Math.min(90, target + 3);
+            // kick off both requests so their headers (sizes) arrive together
+            const resps = await Promise.all(urls.map((u) => fetch(u)));
+            resps.forEach((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); });
+            const totals = resps.map((r) => +r.headers.get('Content-Length') || 0);
+            const grand = totals.reduce((a, b) => a + b, 0);
+            let received = 0;
+
+            for (let i = 0; i < resps.length; i++) {
+              const reader = resps[i].body.getReader();
+              const chunks = [];
+              for (;;) {
+                const { done: d, value } = await reader.read();
+                if (d) break;
+                chunks.push(value); received += value.length;
+                target = grand ? Math.min(96, (received / grand) * 96) : Math.min(90, target + 2);
+              }
+              clips[i].src = URL.createObjectURL(new Blob(chunks, { type: 'video/mp4' }));
+              clips[i].load();
             }
-            video.src = URL.createObjectURL(new Blob(chunks, { type: 'video/mp4' }));
-            video.load();
-            // wait until it can seek anywhere (fully ready)
-            await new Promise((res) => {
+
+            // wait until BOTH can seek anywhere (fully ready)
+            await Promise.all(clips.map((v) => new Promise((res) => {
               let s = false; const go = () => { if (!s) { s = true; res(); } };
-              video.addEventListener('canplaythrough', go, { once: true });
-              const iv = setInterval(() => { if (video.readyState >= 4) { clearInterval(iv); go(); } }, 80);
+              if (v.readyState >= 4) return go();
+              v.addEventListener('canplaythrough', go, { once: true });
+              const iv = setInterval(() => { if (v.readyState >= 4) { clearInterval(iv); go(); } }, 80);
               setTimeout(() => { clearInterval(iv); go(); }, 10000);
-            });
+            })));
           } catch (e) {
-            // stream the file directly if the blob fetch fails for any reason
-            if (!video.src) { video.src = VIDEO_URL; video.load(); }
+            // stream the files directly if a blob fetch fails for any reason
+            clips.forEach((v) => { if (!v.src) { v.src = v.getAttribute('data-src'); v.load(); } });
           } finally {
             target = 100; finished = true;   // download complete → allow reveal
           }
@@ -775,8 +812,9 @@
       if (l) l.remove();
       document.documentElement.classList.remove('loading');
       window.__loaderDone = true;
-      const fv = document.querySelector('.seq-video');
-      if (fv && !fv.src) fv.src = fv.getAttribute('data-src') || 'assets/video_scrub.mp4';
+      document.querySelectorAll('.seq-video').forEach((fv) => {
+        if (!fv.src) fv.src = fv.getAttribute('data-src');
+      });
       document.querySelectorAll('.reveal, .reveal-l, .reveal-r, .reveal-scale')
         .forEach(el => el.classList.add('is-in'));
     }
