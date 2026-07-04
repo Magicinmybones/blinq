@@ -271,8 +271,9 @@
   <header class="hero-seq" id="top">
     <div class="seq-outer">
       <div class="seq">
+        <!-- all-intra re-encode (every frame a keyframe) for smooth scroll-scrubbing -->
         <video class="seq-video" playsinline muted preload="auto"
-               poster="assets/1.png" src="assets/video_one.mp4"></video>
+               src="assets/video_scrub.mp4"></video>
       </div>
     </div>
   </header>
@@ -522,6 +523,12 @@
           },
         });
       };
+
+      // Force the video's OWN first frame to paint immediately (no poster,
+      // so the starting state is the video, never a static asset image).
+      const primeFirstFrame = () => { try { video.currentTime = 0; } catch (e) {} };
+      if (video.readyState >= 2) primeFirstFrame();
+      else video.addEventListener('loadeddata', primeFirstFrame, { once: true });
 
       // preload, then wire scrubbing once the browser knows the duration
       if (video.readyState >= 1 && video.duration) {
