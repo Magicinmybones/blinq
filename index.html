@@ -354,7 +354,7 @@
       var l = document.getElementById('loader');
       if (l) l.parentNode && l.parentNode.removeChild(l);
       document.documentElement.classList.remove('loading');
-    }, 9000);
+    }, 35000);
   </script>
 
   <!-- NAVBAR — imported EV Navbar design, blinq logo + wordmark -->
@@ -392,9 +392,10 @@
   <header class="hero-seq" id="top">
     <div class="seq-outer">
       <div class="seq">
-        <!-- all-intra re-encode (every frame a keyframe) for smooth scroll-scrubbing -->
+        <!-- all-intra re-encode (every frame a keyframe) for smooth scroll-scrubbing.
+             src is assigned in JS as a fully-downloaded blob so every frame is seekable. -->
         <video class="seq-video" playsinline muted preload="auto"
-               src="assets/video_scrub.mp4"></video>
+               data-src="assets/video_scrub.mp4"></video>
       </div>
     </div>
   </header>
@@ -653,13 +654,13 @@
       if (video.readyState >= 2) primeFirstFrame();
       else video.addEventListener('loadeddata', primeFirstFrame, { once: true });
 
-      // preload, then wire scrubbing once the browser knows the duration
+      // wire scrubbing once the browser knows the duration (fires when the
+      // loader assigns the downloaded blob as the source)
       if (video.readyState >= 1 && video.duration) {
         buildVideoScrub();
       } else {
         video.addEventListener('loadedmetadata', buildVideoScrub, { once: true });
       }
-      video.load();
 
       /* Parallax on the battery showcase media */
       gsap.utils.toArray('.showcase-media img').forEach((img) => {
@@ -687,33 +688,22 @@
       });
 
       /* ---- INTRO PRELOADER ----
-         Counts 0→100 while the hero video buffers behind the white panel.
-         Pro pattern: a brisk time-based crawl toward ~92, blended with the
-         video's real buffered fraction, that only reaches 100 once the clip
-         can play through — then an eased curtain reveal into the scene. */
+         The clip is FULLY downloaded (as a blob) before the scene is revealed,
+         so every frame is instantly seekable and scrubbing never lands on an
+         un-buffered gap. The counter reflects real byte-download progress. */
       (function runLoader() {
         const loader = document.getElementById('loader');
         if (!loader) { if (lenis) lenis.start(); return; }
         const numEl = document.getElementById('load-num');
         const barEl = document.getElementById('load-bar');
-        let ready = false, done = false, shown = 0;
-        const t0 = performance.now();
+        const VIDEO_URL = video.getAttribute('data-src') || 'assets/video_scrub.mp4';
+        let done = false, finished = false, shown = 0, target = 0;
 
         // entrance
         gsap.from('.loader-count', { yPercent: 12, opacity: 0, duration: .7, ease: 'power3.out' });
         gsap.from('.ls', { opacity: 0, y: 8, duration: .6, stagger: .06, ease: 'power2.out' });
 
-        video.addEventListener('canplaythrough', () => { ready = true; }, { once: true });
-
-        const realFrac = () => {
-          if (video.readyState >= 4) return 1;
-          if (video.duration && video.buffered.length) {
-            return Math.min(1, video.buffered.end(video.buffered.length - 1) / video.duration);
-          }
-          return 0;
-        };
-
-        const finish = () => {
+        const curtain = () => {
           if (done) return; done = true; window.__loaderDone = true;
           gsap.timeline({
             onComplete() {
@@ -730,23 +720,53 @@
           .to(loader, { yPercent: -100, duration: 1.0, ease: 'power4.inOut' }, .2);
         };
 
-        const tick = (now) => {
-          const elapsed = (now - t0) / 1000;
-          const timeTarget = Math.min(92, (elapsed / 1.3) * 92);   // brisk crawl
-          let target = Math.max(timeTarget, realFrac() * 100);
-          target = ready ? 100 : Math.min(target, 99);
-          shown += (target - shown) * 0.14;
-          if (target === 100 && target - shown < 0.6) shown = 100;
-          const v = Math.min(100, Math.floor(shown));
+        // ease the displayed number toward the real target; reveal only once
+        // the full download has finished (finished === true).
+        const render = () => {
+          shown += (target - shown) * 0.12;
+          if (target - shown < 0.4) shown = target;
+          const v = Math.min(100, Math.floor(shown + 1e-4));
           if (numEl) numEl.textContent = String(v).padStart(2, '0');
           if (barEl) barEl.style.transform = 'scaleX(' + (v / 100) + ')';
-          if (v >= 100) { finish(); return; }
-          requestAnimationFrame(tick);
+          if (finished && v >= 100) { curtain(); return; }
+          requestAnimationFrame(render);
         };
-        requestAnimationFrame(tick);
+        requestAnimationFrame(render);
 
-        // safety: force-complete if the video never signals canplaythrough
-        setTimeout(() => { ready = true; }, 4500);
+        // Download the whole file, tracking byte progress, then hand the
+        // <video> a blob URL so it is 100% buffered and seekable.
+        (async () => {
+          try {
+            const resp = await fetch(VIDEO_URL);
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            const total = +resp.headers.get('Content-Length') || 0;
+            const reader = resp.body.getReader();
+            const chunks = []; let received = 0;
+            for (;;) {
+              const { done: d, value } = await reader.read();
+              if (d) break;
+              chunks.push(value); received += value.length;
+              target = total ? Math.min(96, (received / total) * 96) : Math.min(90, target + 3);
+            }
+            video.src = URL.createObjectURL(new Blob(chunks, { type: 'video/mp4' }));
+            video.load();
+            // wait until it can seek anywhere (fully ready)
+            await new Promise((res) => {
+              let s = false; const go = () => { if (!s) { s = true; res(); } };
+              video.addEventListener('canplaythrough', go, { once: true });
+              const iv = setInterval(() => { if (video.readyState >= 4) { clearInterval(iv); go(); } }, 80);
+              setTimeout(() => { clearInterval(iv); go(); }, 10000);
+            });
+          } catch (e) {
+            // stream the file directly if the blob fetch fails for any reason
+            if (!video.src) { video.src = VIDEO_URL; video.load(); }
+          } finally {
+            target = 100; finished = true;   // download complete → allow reveal
+          }
+        })();
+
+        // absolute last resort so a broken network can't trap the user forever
+        setTimeout(() => { target = 100; finished = true; }, 30000);
       })();
 
     } else {
@@ -755,6 +775,8 @@
       if (l) l.remove();
       document.documentElement.classList.remove('loading');
       window.__loaderDone = true;
+      const fv = document.querySelector('.seq-video');
+      if (fv && !fv.src) fv.src = fv.getAttribute('data-src') || 'assets/video_scrub.mp4';
       document.querySelectorAll('.reveal, .reveal-l, .reveal-r, .reveal-scale')
         .forEach(el => el.classList.add('is-in'));
     }
