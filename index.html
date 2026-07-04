@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="loading">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -20,8 +20,13 @@
     --line:      rgba(255,255,255,.08);
     --accent:    #4fd4e8;   /* cyan from the battery-platform lighting */
     --accent-2:  #3b7be8;   /* electric blue */
-    --nav-glass: rgba(30, 92, 120, 0.28);
-    --nav-border:rgba(140, 220, 240, 0.22);
+    --nav-glass: rgba(50, 66, 74, 0.58);     /* deep slate-graphite glass */
+    --nav-border:rgba(255, 255, 255, 0.12);  /* soft translucent white edge */
+    --nav-menu:  #DCE5EA;                     /* cool gray-white menu text */
+    --nav-cyan:  #5FE3FF;                     /* electric-cyan brand accent */
+    --nav-contact:#B9F24A;                    /* refined premium tech-lime */
+    --nav-demo:  #F4F7F8;                     /* clean off-white */
+    --nav-ink:   #11181C;                     /* dark charcoal button text */
     --maxw: 1280px;
     --ease: cubic-bezier(.22,1,.36,1);
   }
@@ -77,42 +82,83 @@
   .navbar {
     pointer-events:auto;
     width: min(1180px, 100%);
-    height: 74px;                      /* taller than a standard bar */
-    display:flex; align-items:center; justify-content:space-between;
-    padding: 0 14px 0 26px;
-    border-radius: 16px;               /* just a little corner radius */
+    height: 64px;
+    display:flex; align-items:center; gap: 14px;
+    padding: 0 12px 0 20px;
+    border-radius: 20px;               /* soft, rounded premium panel */
     background: var(--nav-glass);
     border: 1px solid var(--nav-border);
-    backdrop-filter: blur(18px) saturate(160%);
-    -webkit-backdrop-filter: blur(18px) saturate(160%);
-    box-shadow: none;                  /* pure — no shadow */
-    transition: background .4s var(--ease), height .4s var(--ease);
+    backdrop-filter: blur(18px) saturate(150%);
+    -webkit-backdrop-filter: blur(18px) saturate(150%);
+    /* soft, wide, low-opacity floating shadow */
+    box-shadow: 0 18px 50px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.06);
+    transition: background .4s var(--ease);
   }
+  /* brand: rounded-square mark + wordmark */
   .brand {
+    display:flex; align-items:center; gap:11px; text-decoration:none;
+    margin-right: 6px;
+  }
+  .brand-mark {
+    width: 34px; height: 34px; border-radius: 10px;
+    display:grid; place-items:center;
+    background: linear-gradient(160deg, rgba(255,255,255,.16), rgba(255,255,255,.05));
+    border: 1px solid rgba(255,255,255,.16);
+    color: var(--nav-cyan);
+  }
+  .brand-mark svg { width: 17px; height: 17px; display:block; }
+  .brand-name {
     font-family:'Syne', sans-serif; font-weight:800;
-    font-size: 24px; letter-spacing:-.03em; color: var(--ink);
-    display:flex; align-items:center; gap:9px; text-decoration:none;
+    font-size: 22px; letter-spacing:-.02em; color: #F4F7F8;
   }
-  .brand .dot {
-    width:9px; height:9px; border-radius:50%;
-    background: var(--accent);
-    box-shadow: 0 0 14px var(--accent);
-  }
-  .nav-links { display:flex; align-items:center; gap:34px; }
+  /* menu links with dropdown carets */
+  .nav-links { display:flex; align-items:center; gap: 26px; margin-left: 8px; }
   .nav-links a {
-    color: var(--ink-dim); text-decoration:none;
-    font-size: 14px; font-weight:500; letter-spacing:.01em;
-    transition: color .25s var(--ease);
+    display:inline-flex; align-items:center; gap:6px;
+    color: var(--nav-menu); opacity:.72; text-decoration:none;
+    font-size: 15px; font-weight:500; letter-spacing:.005em;
+    transition: opacity .25s var(--ease), color .25s var(--ease);
   }
-  .nav-links a:hover { color: var(--ink); }
-  .nav-cta {
-    display:inline-flex; align-items:center; gap:8px;
-    height: 46px; padding: 0 22px; border-radius: 11px;
-    background: var(--ink); color: #06080b;
-    font-weight:600; font-size:14px; text-decoration:none;
-    transition: transform .25s var(--ease), background .25s var(--ease);
+  .nav-links a:hover { opacity:1; color:#FFFFFF; }
+  .nav-links .caret { font-size:10px; opacity:.7; transform: translateY(1px); }
+
+  /* right-side action cluster */
+  .nav-actions { display:flex; align-items:center; gap: 10px; margin-left:auto; }
+
+  /* frosted glass phone button */
+  .nav-icon-btn {
+    width: 44px; height: 44px; border-radius: 12px;
+    display:grid; place-items:center;
+    background: rgba(255,255,255,.06);
+    border: 1px solid rgba(255,255,255,.16);
+    color: #F4F7F8; text-decoration:none;
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    transition: background .25s var(--ease), border-color .25s var(--ease);
   }
-  .nav-cta:hover { background: var(--accent); transform: translateY(-1px); }
+  .nav-icon-btn:hover { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.28); }
+  .nav-icon-btn svg { width: 18px; height: 18px; display:block; }
+
+  /* DEMO — clean off-white pill */
+  .nav-demo {
+    height: 44px; padding: 0 24px; border-radius: 12px;
+    display:inline-flex; align-items:center;
+    background: var(--nav-demo); color: var(--nav-ink);
+    font-size: 12.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+    text-decoration:none;
+    transition: transform .25s var(--ease), box-shadow .25s var(--ease);
+  }
+  .nav-demo:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0,0,0,.25); }
+
+  /* CONTACT — accent button (refined tech-lime) */
+  .nav-contact {
+    height: 44px; padding: 0 26px; border-radius: 12px;
+    display:inline-flex; align-items:center;
+    background: var(--nav-contact); color: var(--nav-ink);
+    font-size: 12.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+    text-decoration:none;
+    transition: transform .25s var(--ease), box-shadow .25s var(--ease), filter .25s var(--ease);
+  }
+  .nav-contact:hover { transform: translateY(-1px); filter: brightness(1.05); box-shadow: 0 6px 22px rgba(185,242,74,.28); }
   .nav-burger { display:none; }
 
   /* ============ HERO — SCROLL-DRIVEN CINEMATIC VIDEO ============ */
@@ -223,6 +269,39 @@
     will-change: opacity, transform;
   }
 
+  /* ============ INTRO PRELOADER ============ */
+  html.loading, html.loading body { overflow: hidden !important; height: 100%; }
+  .loader {
+    position: fixed; inset: 0; z-index: 9999;
+    background: #f3f5f6; color: #0b0f13;
+    display: grid; place-items: center;
+    will-change: transform;
+  }
+  .loader-count {
+    display: flex; align-items: flex-start;
+    font-family: 'Syne', sans-serif; font-weight: 800;
+    line-height: .82; letter-spacing: -.05em;
+  }
+  #load-num { font-size: clamp(120px, 24vw, 360px); font-variant-numeric: tabular-nums; }
+  .loader-pct {
+    font-size: clamp(28px, 5vw, 60px); margin-left: .06em; margin-top: .2em;
+    color: #12aecb; -webkit-text-fill-color: #12aecb;   /* deep cyan brand accent */
+  }
+  .loader-scatter { position: absolute; inset: 0; pointer-events: none; }
+  .ls {
+    position: absolute; font-family: 'Manrope', sans-serif;
+    font-size: 11.5px; font-weight: 600; letter-spacing: .24em; text-transform: uppercase;
+    color: #67757d;
+  }
+  .ls-tl { top: 26px; left: 28px; }
+  .ls-tr { top: 26px; right: 28px; }
+  .ls-ml { top: 50%; left: 28px; transform: translateY(-50%); }
+  .ls-mr { top: 50%; right: 28px; transform: translateY(-50%); text-align: right; }
+  .ls-bl { bottom: 30px; left: 28px; }
+  .ls-br { bottom: 30px; right: 28px; }
+  .loader-barwrap { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(11,15,19,.08); }
+  #load-bar { display: block; height: 100%; width: 100%; transform-origin: left center; transform: scaleX(0); background: #0b0f13; }
+
   /* ============ RESPONSIVE ============ */
   @media (max-width: 900px) {
     .split { grid-template-columns: 1fr; }
@@ -253,17 +332,62 @@
 </head>
 <body>
 
+  <!-- INTRO PRELOADER (counts 0→100 while the hero video buffers behind it) -->
+  <div id="loader" class="loader">
+    <div class="loader-scatter" aria-hidden="true">
+      <span class="ls ls-tl">Blinq / EV</span>
+      <span class="ls ls-tr">Est. 2026</span>
+      <span class="ls ls-ml">Cinematic Showroom</span>
+      <span class="ls ls-mr">Battery Swap · 2:48</span>
+      <span class="ls ls-bl">Loading Assets</span>
+      <span class="ls ls-br">The City Moves Electric</span>
+    </div>
+    <div class="loader-count"><span id="load-num">00</span><span class="loader-pct">%</span></div>
+    <div class="loader-barwrap"><i id="load-bar"></i></div>
+  </div>
+  <script>
+    /* Hard safety net: never let the intro trap the user, even if the main
+       script fails to load (e.g. a blocked CDN). */
+    window.__loaderDone = false;
+    setTimeout(function () {
+      if (window.__loaderDone) return;
+      var l = document.getElementById('loader');
+      if (l) l.parentNode && l.parentNode.removeChild(l);
+      document.documentElement.classList.remove('loading');
+    }, 9000);
+  </script>
+
   <!-- NAVBAR -->
   <div class="nav-shell">
     <nav class="navbar">
-      <a href="#top" class="brand"><span class="dot"></span>blinq</a>
+      <a href="#top" class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="4" y="3" width="16" height="18" rx="2" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M9 3v18M12 7h4M12 11h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="brand-name">Terminal</span>
+      </a>
+
       <div class="nav-links">
-        <a href="#design">Design</a>
-        <a href="#swap">Battery Swap</a>
-        <a href="#gallery">Gallery</a>
-        <a href="#specs">Specs</a>
+        <a href="#">System <span class="caret">▾</span></a>
+        <a href="#">Markets <span class="caret">▾</span></a>
+        <a href="#">Featured <span class="caret">▾</span></a>
+        <a href="#">Resources <span class="caret">▾</span></a>
+        <a href="#">About</a>
       </div>
-      <a href="#reserve" class="nav-cta">Reserve →</a>
+
+      <div class="nav-actions">
+        <a href="#" class="nav-icon-btn" aria-label="Call us">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M6.5 4h2.2l1.3 3.3-1.7 1.2a12 12 0 0 0 5.2 5.2l1.2-1.7L18 13.3V15.5A2.5 2.5 0 0 1 15.5 18 12.5 12.5 0 0 1 3 5.5 1.5 1.5 0 0 1 4.5 4Z"
+                  stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+          </svg>
+        </a>
+        <a href="#" class="nav-demo">Demo</a>
+        <a href="#" class="nav-contact">Contact</a>
+      </div>
     </nav>
   </div>
 
@@ -458,8 +582,9 @@
          Lenis interpolates the real page scroll so wheel/trackpad input feels
          weighted and continuous; ScrollTrigger reads from it every frame, which
          makes the pinned video scrub glide instead of stepping. */
+      let lenis = null;
       if (window.Lenis) {
-        const lenis = new Lenis({
+        lenis = new Lenis({
           duration: 1.15,                                   // inertia weight
           easing: (t) => 1 - Math.pow(1 - t, 3),            // gentle ease-out
           smoothWheel: true,
@@ -467,6 +592,7 @@
         lenis.on('scroll', ScrollTrigger.update);
         gsap.ticker.add((time) => lenis.raf(time * 1000));
         gsap.ticker.lagSmoothing(0);
+        lenis.stop();                                       // locked until the intro finishes
       }
 
       /* Standard scroll-trigger reveal: fade + slide/scale as each element
@@ -552,23 +678,86 @@
         });
       });
 
-      /* Navbar densifies once you leave the hero */
+      /* Navbar glass deepens slightly once you leave the hero (height unchanged) */
       const navbar = document.querySelector('.navbar');
       ScrollTrigger.create({
         start: 'top -80',
         onUpdate: (self) => {
-          if (self.scroll() > 80) {
-            navbar.style.background = 'rgba(20, 66, 88, 0.42)';
-            navbar.style.height = '64px';
-          } else {
-            navbar.style.background = '';
-            navbar.style.height = '';
-          }
+          navbar.style.background = self.scroll() > 80
+            ? 'rgba(45, 60, 68, 0.72)'
+            : '';
         }
       });
 
+      /* ---- INTRO PRELOADER ----
+         Counts 0→100 while the hero video buffers behind the white panel.
+         Pro pattern: a brisk time-based crawl toward ~92, blended with the
+         video's real buffered fraction, that only reaches 100 once the clip
+         can play through — then an eased curtain reveal into the scene. */
+      (function runLoader() {
+        const loader = document.getElementById('loader');
+        if (!loader) { if (lenis) lenis.start(); return; }
+        const numEl = document.getElementById('load-num');
+        const barEl = document.getElementById('load-bar');
+        let ready = false, done = false, shown = 0;
+        const t0 = performance.now();
+
+        // entrance
+        gsap.from('.loader-count', { yPercent: 12, opacity: 0, duration: .7, ease: 'power3.out' });
+        gsap.from('.ls', { opacity: 0, y: 8, duration: .6, stagger: .06, ease: 'power2.out' });
+
+        video.addEventListener('canplaythrough', () => { ready = true; }, { once: true });
+
+        const realFrac = () => {
+          if (video.readyState >= 4) return 1;
+          if (video.duration && video.buffered.length) {
+            return Math.min(1, video.buffered.end(video.buffered.length - 1) / video.duration);
+          }
+          return 0;
+        };
+
+        const finish = () => {
+          if (done) return; done = true; window.__loaderDone = true;
+          gsap.timeline({
+            onComplete() {
+              loader.remove();
+              document.documentElement.classList.remove('loading');
+              if (lenis) lenis.start();
+              window.scrollTo(0, 0);
+              ScrollTrigger.refresh();
+            }
+          })
+          .to('#load-num', { yPercent: -20, opacity: 0, duration: .45, ease: 'power2.in' }, 0)
+          .to('.loader-pct', { opacity: 0, duration: .3 }, 0)
+          .to('.ls', { opacity: 0, duration: .35, stagger: .03 }, 0)
+          .to(loader, { yPercent: -100, duration: 1.0, ease: 'power4.inOut' }, .2);
+        };
+
+        const tick = (now) => {
+          const elapsed = (now - t0) / 1000;
+          const timeTarget = Math.min(92, (elapsed / 1.3) * 92);   // brisk crawl
+          let target = Math.max(timeTarget, realFrac() * 100);
+          target = ready ? 100 : Math.min(target, 99);
+          shown += (target - shown) * 0.14;
+          if (target === 100 && target - shown < 0.6) shown = 100;
+          const v = Math.min(100, Math.floor(shown));
+          if (numEl) numEl.textContent = String(v).padStart(2, '0');
+          if (barEl) barEl.style.transform = 'scaleX(' + (v / 100) + ')';
+          if (v >= 100) { finish(); return; }
+          requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+
+        // safety: force-complete if the video never signals canplaythrough
+        setTimeout(() => { ready = true; }, 4500);
+      })();
+
     } else {
-      /* Fallback: reveal everything immediately */
+      /* Fallback (no GSAP / reduced motion): drop the intro, unlock, reveal */
+      const l = document.getElementById('loader');
+      if (l) l.remove();
+      document.documentElement.classList.remove('loading');
+      window.__loaderDone = true;
       document.querySelectorAll('.reveal, .reveal-l, .reveal-r, .reveal-scale')
         .forEach(el => el.classList.add('is-in'));
     }
