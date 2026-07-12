@@ -163,7 +163,7 @@
 
   /* ============ HERO — SCROLL-DRIVEN CINEMATIC VIDEO ============ */
   .hero-seq { position:relative; }
-  .seq-outer { height: 720vh; }                 /* scroll length = scrub pacing (video one + two; 2 clips) */
+  .seq-outer { height: 1080vh; }                /* scroll length = scrub pacing (video one + two + three; 3 clips) */
   .seq {
     position:relative; height:100svh; width:100%;
     overflow:hidden; background: var(--bg);
@@ -392,8 +392,8 @@
   <header class="hero-seq" id="top">
     <div class="seq-outer">
       <div class="seq">
-        <!-- Single all-intra clip = video one + two, re-encoded so EVERY
-             frame is a keyframe (146 frames, every one independently seekable).
+        <!-- Single all-intra clip = video one + two + three, re-encoded so EVERY
+             frame is a keyframe (every one independently seekable).
              That is what makes scroll-scrubbing smooth; the raw clips have only one
              keyframe each and would stick. src is assigned in JS as a fully-
              downloaded blob so every frame is buffered and seekable. -->
