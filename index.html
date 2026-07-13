@@ -161,16 +161,16 @@
   .nav-contact:hover { background: rgb(196, 247, 92); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(184,241,70,.3); }
   .nav-burger { display:none; }
 
-  /* ============ HERO — SCROLL-DRIVEN CINEMATIC VIDEO ============ */
+  /* ============ HERO — SCROLL-DRIVEN FRAME SEQUENCE ============ */
   .hero-seq { position:relative; }
-  .seq-outer { height: 1080vh; }                /* scroll length = scrub pacing (video one + two + three; 3 clips) */
+  .seq-outer { height: 1000vh; }                /* scroll length = scrub pacing (86-frame image sequence, cross-faded) */
   .seq {
     position:relative; height:100svh; width:100%;
     overflow:hidden; background: var(--bg);
   }
-  .seq-video {
+  .seq-canvas {
     position:absolute; inset:0; width:100%; height:100%;
-    object-fit:cover; background: var(--bg);
+    display:block; background: var(--bg);
     filter: brightness(.86) contrast(1.05);
     will-change: transform;
   }
@@ -388,17 +388,13 @@
     </nav>
   </div>
 
-  <!-- HERO — scroll-driven cinematic video (scroll scrubs playback) -->
+  <!-- HERO — scroll-driven frame sequence (scroll scrubs through 86 PNG frames)
+       Frames live in assets/frames/test_realcar.png0001.png … 0086.png and are
+       drawn to a canvas; scroll progress picks the frame. No video. -->
   <header class="hero-seq" id="top">
     <div class="seq-outer">
       <div class="seq">
-        <!-- Single all-intra clip = video one + two + three, re-encoded so EVERY
-             frame is a keyframe (every one independently seekable).
-             That is what makes scroll-scrubbing smooth; the raw clips have only one
-             keyframe each and would stick. src is assigned in JS as a fully-
-             downloaded blob so every frame is buffered and seekable. -->
-        <video class="seq-video" playsinline muted preload="auto"
-               data-src="assets/video_scrub.mp4"></video>
+        <canvas class="seq-canvas"></canvas>
       </div>
     </div>
   </header>
@@ -586,7 +582,7 @@
       let lenis = null;
       if (window.Lenis) {
         lenis = new Lenis({
-          duration: 1.15,                                   // inertia weight
+          duration: 1.35,                                   // inertia weight (heavier = smoother)
           easing: (t) => 1 - Math.pow(1 - t, 3),            // gentle ease-out
           smoothWheel: true,
         });
@@ -606,64 +602,83 @@
         });
       });
 
-      /* ---- HERO: scroll-driven cinematic video scrubbing ----
-         The pinned video's currentTime is tied to scroll progress, so the
-         camera descent in the clip is physically driven by the user's scroll.
-         GSAP's scrub adds an eased lag so the motion feels premium, never jumpy. */
-      const video = document.querySelector('.seq-video');
+      /* ---- HERO: scroll-driven frame-sequence scrubbing ----
+         86 PNG frames are preloaded, then the one matching scroll progress is
+         drawn to a canvas. GSAP's scrub adds an eased lag so the motion feels
+         premium, never jumpy. Lenis supplies the underlying smoothness. */
+      const canvas = document.querySelector('.seq-canvas');
+      const ctx = canvas.getContext('2d');
 
-      // keep it fully under our control (no native playback)
-      video.pause();
-      video.muted = true;
-      video.playsInline = true;
+      const FRAME_COUNT = 86;
+      const framePath = (i) =>
+        'assets/frames/test_realcar.png' + String(i).padStart(4, '0') + '.png';
 
-      const buildVideoScrub = () => {
-        const duration = video.duration;
-        if (!duration || !isFinite(duration)) return;
+      const frames = new Array(FRAME_COUNT);   // Image objects, 0-indexed (frame 1 = [0])
+      let lastF = -1;
 
-        // proxy object we tween; we write currentTime from it to avoid
-        // firing redundant seeks when the target frame hasn't changed.
-        const state = { t: 0 };
-        let last = -1;
+      // object-fit: cover placement for an image on the current canvas.
+      const coverRect = (img) => {
+        const cw = canvas.width, ch = canvas.height;
+        const scale = Math.max(cw / img.naturalWidth, ch / img.naturalHeight);
+        const dw = img.naturalWidth * scale, dh = img.naturalHeight * scale;
+        return [(cw - dw) / 2, (ch - dh) / 2, dw, dh];
+      };
 
+      // Draw a FRACTIONAL frame position f: the whole-number frame is painted
+      // solid, then the next frame is cross-faded on top by the fractional part.
+      // Blending between the 86 discrete frames removes the visible "stepping"
+      // and makes the scrub read as continuous motion.
+      function drawFrameF(f, force) {
+        if (!force && Math.abs(f - lastF) < 0.004) return;   // sub-perceptual skip
+        lastF = f;
+        const lo = Math.max(0, Math.min(FRAME_COUNT - 1, Math.floor(f)));
+        const hi = Math.min(FRAME_COUNT - 1, lo + 1);
+        const frac = f - lo;
+        const a = frames[lo], b = frames[hi];
+        if (!a || !a.complete || !a.naturalWidth) return;
+        ctx.globalAlpha = 1;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(a, ...coverRect(a));
+        if (hi !== lo && frac > 0.001 && b && b.complete && b.naturalWidth) {
+          ctx.globalAlpha = frac;
+          ctx.drawImage(b, ...coverRect(b));
+          ctx.globalAlpha = 1;
+        }
+      }
+
+      // Fit the canvas backing store to its display size (retina-aware) and
+      // repaint the current frame so it never looks soft or stretched.
+      const sizeCanvas = () => {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const r = canvas.getBoundingClientRect();
+        canvas.width = Math.round(r.width * dpr);
+        canvas.height = Math.round(r.height * dpr);
+        if (lastF >= 0) drawFrameF(lastF, true);
+      };
+
+      const buildFrameScrub = () => {
+        sizeCanvas();
+        window.addEventListener('resize', sizeCanvas);
+
+        const state = { f: 0 };
         gsap.to(state, {
-          t: duration,
+          f: FRAME_COUNT - 1,
           ease: 'none',
           scrollTrigger: {
             trigger: '.seq-outer',
             start: 'top top',
             end: 'bottom bottom',
-            scrub: 0.4,           // light catch-up; Lenis supplies the smoothness
+            scrub: 1,             // heavier eased catch-up = silkier scrub
             pin: '.seq',
             anticipatePin: 1,
           },
           onUpdate() {
-            const t = state.t;
-            // skip sub-frame updates the decoder would ignore anyway (~30fps)
-            if (Math.abs(t - last) < 1 / 30) return;
-            last = t;
-            // seekable once metadata is in; browsers coalesce rapid seeks to
-            // the latest target, so the scrub never sticks while scrolling fast
-            if (video.readyState >= 1 && video.seekable.length) {
-              video.currentTime = Math.min(t, video.duration - 0.001);
-            }
+            drawFrameF(state.f);
           },
         });
+        // paint the opening frame immediately
+        drawFrameF(0, true);
       };
-
-      // Force the video's OWN first frame to paint immediately (no poster,
-      // so the starting state is the video, never a static asset image).
-      const primeFirstFrame = () => { try { video.currentTime = 0; } catch (e) {} };
-      if (video.readyState >= 2) primeFirstFrame();
-      else video.addEventListener('loadeddata', primeFirstFrame, { once: true });
-
-      // wire scrubbing once the browser knows the duration (fires when the
-      // loader assigns the downloaded blob as the source)
-      if (video.readyState >= 1 && video.duration) {
-        buildVideoScrub();
-      } else {
-        video.addEventListener('loadedmetadata', buildVideoScrub, { once: true });
-      }
 
       /* Parallax on the battery showcase media */
       gsap.utils.toArray('.showcase-media img').forEach((img) => {
@@ -699,7 +714,6 @@
         if (!loader) { if (lenis) lenis.start(); return; }
         const numEl = document.getElementById('load-num');
         const barEl = document.getElementById('load-bar');
-        const VIDEO_URL = video.getAttribute('data-src') || 'assets/video_scrub.mp4';
         let done = false, finished = false, shown = 0, target = 0;
 
         // entrance
@@ -736,35 +750,25 @@
         };
         requestAnimationFrame(render);
 
-        // Download the whole file, tracking byte progress, then hand the
-        // <video> a blob URL so it is 100% buffered and seekable.
-        (async () => {
-          try {
-            const resp = await fetch(VIDEO_URL);
-            if (!resp.ok) throw new Error('HTTP ' + resp.status);
-            const total = +resp.headers.get('Content-Length') || 0;
-            const reader = resp.body.getReader();
-            const chunks = []; let received = 0;
-            for (;;) {
-              const { done: d, value } = await reader.read();
-              if (d) break;
-              chunks.push(value); received += value.length;
-              target = total ? Math.min(96, (received / total) * 96) : Math.min(90, target + 3);
+        // Preload every frame, tracking real load progress (0→96 during the
+        // download, snapping to 100 when all frames are in), then wire the
+        // scroll scrubber so frame 1 is already painted at reveal.
+        (function preloadFrames() {
+          let loaded = 0;
+          const onOne = () => {
+            loaded++;
+            target = Math.min(96, (loaded / FRAME_COUNT) * 96);
+            if (loaded >= FRAME_COUNT) {
+              buildFrameScrub();
+              target = 100; finished = true;   // all frames in → allow reveal
             }
-            video.src = URL.createObjectURL(new Blob(chunks, { type: 'video/mp4' }));
-            video.load();
-            // wait until it can seek anywhere (fully ready)
-            await new Promise((res) => {
-              let s = false; const go = () => { if (!s) { s = true; res(); } };
-              video.addEventListener('canplaythrough', go, { once: true });
-              const iv = setInterval(() => { if (video.readyState >= 4) { clearInterval(iv); go(); } }, 80);
-              setTimeout(() => { clearInterval(iv); go(); }, 10000);
-            });
-          } catch (e) {
-            // stream the file directly if the blob fetch fails for any reason
-            if (!video.src) { video.src = VIDEO_URL; video.load(); }
-          } finally {
-            target = 100; finished = true;   // download complete → allow reveal
+          };
+          for (let i = 1; i <= FRAME_COUNT; i++) {
+            const img = new Image();
+            img.onload = onOne;
+            img.onerror = onOne;               // never let one missing frame stall the intro
+            img.src = framePath(i);
+            frames[i - 1] = img;
           }
         })();
 
@@ -773,13 +777,26 @@
       })();
 
     } else {
-      /* Fallback (no GSAP / reduced motion): drop the intro, unlock, reveal */
+      /* Fallback (no GSAP / reduced motion): drop the intro, unlock, reveal.
+         Paint a single representative frame statically into the hero canvas. */
       const l = document.getElementById('loader');
       if (l) l.remove();
       document.documentElement.classList.remove('loading');
       window.__loaderDone = true;
-      const fv = document.querySelector('.seq-video');
-      if (fv && !fv.src) fv.src = fv.getAttribute('data-src') || 'assets/video_scrub.mp4';
+      const fc = document.querySelector('.seq-canvas');
+      if (fc) {
+        const fctx = fc.getContext('2d');
+        const fimg = new Image();
+        fimg.onload = () => {
+          const r = fc.getBoundingClientRect();
+          const dpr = Math.min(window.devicePixelRatio || 1, 2);
+          fc.width = Math.round(r.width * dpr); fc.height = Math.round(r.height * dpr);
+          const scale = Math.max(fc.width / fimg.naturalWidth, fc.height / fimg.naturalHeight);
+          const dw = fimg.naturalWidth * scale, dh = fimg.naturalHeight * scale;
+          fctx.drawImage(fimg, (fc.width - dw) / 2, (fc.height - dh) / 2, dw, dh);
+        };
+        fimg.src = 'assets/frames/test_realcar.png0001.png';
+      }
       document.querySelectorAll('.reveal, .reveal-l, .reveal-r, .reveal-scale')
         .forEach(el => el.classList.add('is-in'));
     }
